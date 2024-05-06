@@ -19,4 +19,5 @@ BBLAYERS ?= " \
     ${OEROOT}/sources/meta-raspberrypi \
     \
     ${OEROOT}/sources/meta-tmoore3-raspberrypi \
+    ${OEROOT}/sources/meta-tmoore3 \
 "
