@@ -19,6 +19,4 @@ OEROOT=$CWD/sources/poky
 if [ -z "$(grep '^MACHINE =' conf/local.conf)" ]; then
     # Apply selected MACHINE in local conf file
     sed -e 's/^\(MACHINE.*\)$/#\1\nMACHINE = "'"$MACHINE"'"/' -i conf/local.conf
-else
-    echo "[WARNING] MACHINE is already set in local.conf. Nothing done..."
 fi
