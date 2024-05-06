@@ -1,4 +1,4 @@
 Available images from meta-tmoore3-raspberrypi layers are:
 
   - Supported images:
-      core-image-dev         -   Personal core image
+      tmoore3-core-image-dev         -   Personal core image
