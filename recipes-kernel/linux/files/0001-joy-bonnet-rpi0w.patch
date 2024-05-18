@@ -1,0 +1,241 @@
+diff --git a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
+index b49c3cb1438d..c0d5ca0ef788 100644
+--- a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
++++ b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
+@@ -5,6 +5,8 @@
+ #include "bcm283x-rpi-csi1-2lane.dtsi"
+ #include "bcm283x-rpi-i2c0mux_0_28.dtsi"
+ #include "bcm2708-rpi-bt.dtsi"
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
+ 
+ / {
+ 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
+@@ -19,6 +21,81 @@ aliases {
+ 		serial1 = &uart0;
+ 		mmc1 = &mmcnr;
+ 	};
++
++	joy-bonnet-stick {
++		compatible = "adc-joystick";
++		io-channels = <&adc 4>, <&adc 5>;
++		poll-interval = <100>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		axis@0 {
++			reg = <0>;
++			linux,code = <ABS_Y>;
++			abs-range = <1 2047>;
++			abs-fuzz = <4>;
++			abs-flat = <1645>;
++		};
++		axis@1 {
++			reg = <1>;
++			linux,code = <ABS_X>;
++			abs-range = <1 2047>;
++			abs-fuzz = <4>;
++			abs-flat = <1648>;
++		};
++	};
++
++	joy-bonnet-buttons {
++		compatible = "gpio-keys";
++
++		btn_north {
++			label = "btn_north";
++			linux,code = <BTN_NORTH>;
++			gpios = <&gpio 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_east {
++			label = "btn_east";
++			linux,code = <BTN_EAST>;
++			gpios = <&gpio 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_south {
++			label = "btn_south";
++			linux,code = <BTN_SOUTH>;
++			gpios = <&gpio 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_west {
++			label = "btn_west";
++			linux,code = <BTN_WEST>; 
++			gpios = <&gpio 16 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_select {
++			label = "btn_select";
++			linux,code = <BTN_SELECT>;
++			gpios = <&gpio 20 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_start {
++			label = "btn_start";
++			linux,code = <BTN_START>;
++			gpios = <&gpio 26 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_thumbl {
++			label = "btn_thumbl";
++			linux,code = <BTN_THUMBL>;
++			gpios = <&gpio 23 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++
++		btn_thumbr {
++			label = "btn_thumbr";
++			linux,code = <BTN_THUMBR>;
++			gpios = <&gpio 22 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
++		};
++	};
+ };
+ 
+ &gpio {
+@@ -200,6 +277,26 @@ &i2c1 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&i2c1_pins>;
+ 	clock-frequency = <100000>;
++
++	adc: ads1015@48 {
++                compatible = "ti,ads1015";
++                reg = <0x48>;
++                #address-cells = <1>;
++                #size-cells = <0>;
++                #io-channel-cells = <1>;
++
++		adc_ch4: channel@4 {
++			reg = <4>;
++			ti,gain = <2>;
++			ti,datarate = <4>;
++		};
++
++		adc_ch5: channel@5 {
++			reg = <5>;
++			ti,gain = <2>;
++			ti,datarate = <4>;
++		};
++	};
+ };
+ 
+ &i2c2 {
+diff --git a/drivers/input/joystick/adc-joystick.c b/drivers/input/joystick/adc-joystick.c
+index 78ebca7d400a..c0deff5d4282 100644
+--- a/drivers/input/joystick/adc-joystick.c
++++ b/drivers/input/joystick/adc-joystick.c
+@@ -26,8 +26,23 @@ struct adc_joystick {
+ 	struct adc_joystick_axis *axes;
+ 	struct iio_channel *chans;
+ 	int num_chans;
++	bool polled;
+ };
+ 
++static void adc_joystick_poll(struct input_dev *input)
++{
++	struct adc_joystick *joy = input_get_drvdata(input);
++	int i, val, ret;
++
++	for (i = 0; i < joy->num_chans; i++) {
++		ret = iio_read_channel_raw(&joy->chans[i], &val);
++		if (ret < 0)
++			return;
++		input_report_abs(input, joy->axes[i].code, val);
++	}
++	input_sync(input);
++}
++
+ static int adc_joystick_handle(const void *data, void *private)
+ {
+ 	struct adc_joystick *joy = private;
+@@ -179,6 +194,7 @@ static int adc_joystick_probe(struct platform_device *pdev)
+ 	int error;
+ 	int bits;
+ 	int i;
++	unsigned int poll_interval;
+ 
+ 	joy = devm_kzalloc(dev, sizeof(*joy), GFP_KERNEL);
+ 	if (!joy)
+@@ -192,8 +208,25 @@ static int adc_joystick_probe(struct platform_device *pdev)
+ 		return error;
+ 	}
+ 
+-	/* Count how many channels we got. NULL terminated. */
++	error = device_property_read_u32(dev, "poll-interval", &poll_interval);
++	if (error) {
++		/* -EINVAL means the property is absent. */
++		if (error != -EINVAL)
++			return error;
++	} else if (poll_interval == 0) {
++		dev_err(dev, "Unable to get poll-interval\n");
++		return -EINVAL;
++	} else {
++		joy->polled = true;
++	}
++
++	/*
++	 * Count how many channels we got. NULL terminated.
++	 * Do not check the storage size if using polling.
++	 */
+ 	for (i = 0; joy->chans[i].indio_dev; i++) {
++		if (joy->polled)
++			continue;
+ 		bits = joy->chans[i].channel->scan_type.storagebits;
+ 		if (!bits || bits > 16) {
+ 			dev_err(dev, "Unsupported channel storage size\n");
+@@ -215,32 +248,41 @@ static int adc_joystick_probe(struct platform_device *pdev)
+ 	joy->input = input;
+ 	input->name = pdev->name;
+ 	input->id.bustype = BUS_HOST;
+-	input->open = adc_joystick_open;
+-	input->close = adc_joystick_close;
+ 
+ 	error = adc_joystick_set_axes(dev, joy);
+ 	if (error)
+ 		return error;
+ 
++	if (joy->polled) {
++		input_setup_polling(input, adc_joystick_poll);
++		input_set_poll_interval(input, poll_interval);
++	} else {
++		input->open = adc_joystick_open;
++		input->close = adc_joystick_close;
++
++		joy->buffer = iio_channel_get_all_cb(dev, adc_joystick_handle,
++						     joy);
++		if (IS_ERR(joy->buffer)) {
++			dev_err(dev, "Unable to allocate callback buffer\n");
++			return PTR_ERR(joy->buffer);
++		}
++
++		error = devm_add_action_or_reset(dev, adc_joystick_cleanup,
++						 joy->buffer);
++		if (error)  {
++			dev_err(dev, "Unable to add action\n");
++			return error;
++		}
++	}
++
+ 	input_set_drvdata(input, joy);
++
+ 	error = input_register_device(input);
+ 	if (error) {
+ 		dev_err(dev, "Unable to register input device\n");
+ 		return error;
+ 	}
+ 
+-	joy->buffer = iio_channel_get_all_cb(dev, adc_joystick_handle, joy);
+-	if (IS_ERR(joy->buffer)) {
+-		dev_err(dev, "Unable to allocate callback buffer\n");
+-		return PTR_ERR(joy->buffer);
+-	}
+-
+-	error = devm_add_action_or_reset(dev, adc_joystick_cleanup, joy->buffer);
+-	if (error)  {
+-		dev_err(dev, "Unable to add action\n");
+-		return error;
+-	}
+-
+ 	return 0;
+ }
+ 
