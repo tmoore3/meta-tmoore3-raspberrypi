@@ -1,5 +1,5 @@
 diff --git a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
-index b49c3cb1438d..c0d5ca0ef788 100644
+index b49c3cb1438d..9d8907fd7758 100644
 --- a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
 +++ b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
 @@ -5,6 +5,8 @@
@@ -26,16 +26,16 @@ index b49c3cb1438d..c0d5ca0ef788 100644
 +		axis@0 {
 +			reg = <0>;
 +			linux,code = <ABS_Y>;
-+			abs-range = <1 2047>;
++			abs-range = <0 1660>;
 +			abs-fuzz = <4>;
-+			abs-flat = <1645>;
++			abs-flat = <823>;
 +		};
 +		axis@1 {
 +			reg = <1>;
 +			linux,code = <ABS_X>;
-+			abs-range = <1 2047>;
++			abs-range = <0 1660>;
 +			abs-fuzz = <4>;
-+			abs-flat = <1648>;
++			abs-flat = <823>;
 +		};
 +	};
 +
@@ -99,21 +99,21 @@ index b49c3cb1438d..c0d5ca0ef788 100644
  	clock-frequency = <100000>;
 +
 +	adc: ads1015@48 {
-+                compatible = "ti,ads1015";
-+                reg = <0x48>;
-+                #address-cells = <1>;
-+                #size-cells = <0>;
-+                #io-channel-cells = <1>;
++		compatible = "ti,ads1015";
++		reg = <0x48>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++		#io-channel-cells = <1>;
 +
 +		adc_ch4: channel@4 {
 +			reg = <4>;
-+			ti,gain = <2>;
++			ti,gain = <1>;
 +			ti,datarate = <4>;
 +		};
 +
 +		adc_ch5: channel@5 {
 +			reg = <5>;
-+			ti,gain = <2>;
++			ti,gain = <1>;
 +			ti,datarate = <4>;
 +		};
 +	};
