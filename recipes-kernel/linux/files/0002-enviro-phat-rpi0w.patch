@@ -1,0 +1,240 @@
+diff --git a/Documentation/devicetree/bindings/iio/st,st-sensors.yaml b/Documentation/devicetree/bindings/iio/st,st-sensors.yaml
+index 71de5631ebae..e6fcdb71459e 100644
+--- a/Documentation/devicetree/bindings/iio/st,st-sensors.yaml
++++ b/Documentation/devicetree/bindings/iio/st,st-sensors.yaml
+@@ -78,6 +78,7 @@ properties:
+       - description: IMUs
+         enum:
+           - st,lsm9ds0-imu
++          - st,lsm303d-imu
+       - description: Deprecated bindings
+         enum:
+           - st,lis302dl-spi
+diff --git a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
+index b49c3cb1438d..43587f1df891 100644
+--- a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
++++ b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
+@@ -5,6 +5,8 @@
+ #include "bcm283x-rpi-csi1-2lane.dtsi"
+ #include "bcm283x-rpi-i2c0mux_0_28.dtsi"
+ #include "bcm2708-rpi-bt.dtsi"
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/leds/common.h>
+ 
+ / {
+ 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
+@@ -19,6 +21,17 @@ aliases {
+ 		serial1 = &uart0;
+ 		mmc1 = &mmcnr;
+ 	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		led1 {
++			label = "tcs3472_leds";
++			gpios = <&gpio 4 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_WHITE>;
++			default-state = "off";
++		};
++	};
+ };
+ 
+ &gpio {
+@@ -200,6 +213,53 @@ &i2c1 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&i2c1_pins>;
+ 	clock-frequency = <100000>;
++
++	ads1015: ads1015@49 {
++		compatible = "ti,ads1015";
++		reg = <0x49>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++		#io-channel-cells = <1>;
++
++		adc_ch4: channel@4 {
++			reg = <4>;
++			ti,gain = <0>;
++			ti,datarate = <4>;
++		};
++
++		adc_ch5: channel@5 {
++			reg = <5>;
++			ti,gain = <0>;
++			ti,datarate = <4>;
++		};
++
++		adc_ch6: channel@6 {
++			reg = <6>;
++			ti,gain = <0>;
++			ti,datarate = <4>;
++		};
++
++		adc_ch7: channel@7 {
++			reg = <7>;
++			ti,gain = <0>;
++			ti,datarate = <4>;
++		};
++	};
++
++	bmp280: bmp280@77 {
++		compatible = "bosch,bmp280";
++		reg = <0x77>;
++	};
++
++	lsm303d@1d {
++		compatible = "st,lsm303d-imu";
++		reg = <0x1d>;
++	};
++
++	tcs3472: tcs3472@29 {
++		compatible = "tcs3472";
++		reg = <0x29>;
++	};
+ };
+ 
+ &i2c2 {
+diff --git a/drivers/iio/accel/st_accel_core.c b/drivers/iio/accel/st_accel_core.c
+index f1e6ec380667..f845d1ab3902 100644
+--- a/drivers/iio/accel/st_accel_core.c
++++ b/drivers/iio/accel/st_accel_core.c
+@@ -1004,6 +1004,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
+ 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+ 		.sensors_supported = {
+ 			[0] = LSM9DS0_IMU_DEV_NAME,
++			[1] = LSM303D_IMU_DEV_NAME,
+ 		},
+ 		.ch = (struct iio_chan_spec *)st_accel_16bit_channels,
+ 		.odr = {
+diff --git a/drivers/iio/imu/st_lsm9ds0/Kconfig b/drivers/iio/imu/st_lsm9ds0/Kconfig
+index 53b7017014f8..8d0066f54385 100644
+--- a/drivers/iio/imu/st_lsm9ds0/Kconfig
++++ b/drivers/iio/imu/st_lsm9ds0/Kconfig
+@@ -12,7 +12,8 @@ config IIO_ST_LSM9DS0
+ 
+ 	help
+ 	  Say yes here to build support for STMicroelectronics LSM9DS0 IMU
+-	  sensor. Supported devices: accelerometer/magnetometer of lsm9ds0.
++	  sensor. Supported devices: accelerometer/magnetometer of lsm9ds0
++	  and lsm303d.
+ 
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called st_lsm9ds0.
+diff --git a/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_i2c.c b/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_i2c.c
+index 78bede358747..ecd162d49572 100644
+--- a/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_i2c.c
++++ b/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_i2c.c
+@@ -22,16 +22,27 @@ static const struct of_device_id st_lsm9ds0_of_match[] = {
+ 		.compatible = "st,lsm9ds0-imu",
+ 		.data = LSM9DS0_IMU_DEV_NAME,
+ 	},
++	{
++		.compatible = "st,lsm303d-imu",
++		.data = LSM303D_IMU_DEV_NAME,
++	},
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(of, st_lsm9ds0_of_match);
+ 
+ static const struct i2c_device_id st_lsm9ds0_id_table[] = {
+ 	{ LSM9DS0_IMU_DEV_NAME },
++	{ LSM303D_IMU_DEV_NAME },
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(i2c, st_lsm9ds0_id_table);
+ 
++static const struct acpi_device_id st_lsm9ds0_acpi_match[] = {
++	{"ACCL0001", (kernel_ulong_t)LSM303D_IMU_DEV_NAME},
++	{ },
++};
++MODULE_DEVICE_TABLE(acpi, st_lsm9ds0_acpi_match);
++
+ static const struct regmap_config st_lsm9ds0_regmap_config = {
+ 	.reg_bits	= 8,
+ 	.val_bits	= 8,
+@@ -73,6 +84,7 @@ static struct i2c_driver st_lsm9ds0_driver = {
+ 	.driver = {
+ 		.name = "st-lsm9ds0-i2c",
+ 		.of_match_table = st_lsm9ds0_of_match,
++		.acpi_match_table = st_lsm9ds0_acpi_match,
+ 	},
+ 	.probe_new = st_lsm9ds0_i2c_probe,
+ 	.remove = st_lsm9ds0_i2c_remove,
+diff --git a/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_spi.c b/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_spi.c
+index 180b54e66438..78ffe96a9291 100644
+--- a/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_spi.c
++++ b/drivers/iio/imu/st_lsm9ds0/st_lsm9ds0_spi.c
+@@ -22,16 +22,27 @@ static const struct of_device_id st_lsm9ds0_of_match[] = {
+ 		.compatible = "st,lsm9ds0-imu",
+ 		.data = LSM9DS0_IMU_DEV_NAME,
+ 	},
++	{
++		.compatible = "st,lsm303d-imu",
++		.data = LSM303D_IMU_DEV_NAME,
++	},
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(of, st_lsm9ds0_of_match);
+ 
+ static const struct spi_device_id st_lsm9ds0_id_table[] = {
+ 	{ LSM9DS0_IMU_DEV_NAME },
++	{ LSM303D_IMU_DEV_NAME },
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(spi, st_lsm9ds0_id_table);
+ 
++static const struct acpi_device_id st_lsm9ds0_acpi_match[] = {
++	{"ACCL0001", (kernel_ulong_t)LSM303D_IMU_DEV_NAME},
++	{ },
++};
++MODULE_DEVICE_TABLE(acpi, st_lsm9ds0_acpi_match);
++
+ static const struct regmap_config st_lsm9ds0_regmap_config = {
+ 	.reg_bits	= 8,
+ 	.val_bits	= 8,
+@@ -72,6 +83,7 @@ static struct spi_driver st_lsm9ds0_driver = {
+ 	.driver = {
+ 		.name = "st-lsm9ds0-spi",
+ 		.of_match_table = st_lsm9ds0_of_match,
++		.acpi_match_table = st_lsm9ds0_acpi_match,
+ 	},
+ 	.probe = st_lsm9ds0_spi_probe,
+ 	.remove = st_lsm9ds0_spi_remove,
+diff --git a/drivers/iio/magnetometer/st_magn_core.c b/drivers/iio/magnetometer/st_magn_core.c
+index 9ffd50d796bf..a17ea6d5d352 100644
+--- a/drivers/iio/magnetometer/st_magn_core.c
++++ b/drivers/iio/magnetometer/st_magn_core.c
+@@ -426,6 +426,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
+ 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+ 		.sensors_supported = {
+ 			[0] = LSM9DS0_IMU_DEV_NAME,
++			[1] = LSM303D_IMU_DEV_NAME,
+ 		},
+ 		.ch = (struct iio_chan_spec *)st_magn_4_16bit_channels,
+ 		.odr = {
+diff --git a/include/linux/iio/common/st_sensors.h b/include/linux/iio/common/st_sensors.h
+index 69f4a1f6b536..5c876be9487c 100644
+--- a/include/linux/iio/common/st_sensors.h
++++ b/include/linux/iio/common/st_sensors.h
+@@ -22,6 +22,7 @@
+ #include <linux/platform_data/st_sensors_pdata.h>
+ 
+ #define LSM9DS0_IMU_DEV_NAME		"lsm9ds0"
++#define LSM303D_IMU_DEV_NAME		"lsm303d"
+ 
+ /*
+  * Buffer size max case: 2bytes per channel, 3 channels in total +
+diff --git a/include/linux/platform_data/st_sensors_pdata.h b/include/linux/platform_data/st_sensors_pdata.h
+index 897051e51b78..a657830232ae 100644
+--- a/include/linux/platform_data/st_sensors_pdata.h
++++ b/include/linux/platform_data/st_sensors_pdata.h
+@@ -15,7 +15,7 @@
+  * @drdy_int_pin: Redirect DRDY on pin 1 (1) or pin 2 (2).
+  *	Available only for accelerometer, magnetometer and pressure sensors.
+  *	Accelerometer DRDY on LSM330 available only on pin 1 (see datasheet).
+- *	Magnetometer DRDY is supported only on LSM9DS0.
++ *	Magnetometer DRDY is supported only on LSM9DS0 and LSM303D.
+  * @open_drain: set the interrupt line to be open drain if possible.
+  * @spi_3wire: enable spi-3wire mode.
+  * @pullups: enable/disable i2c controller pullup resistors.
