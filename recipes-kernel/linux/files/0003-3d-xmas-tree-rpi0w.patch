@@ -1,0 +1,210 @@
+diff --git a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
+index b49c3cb1438d..b839b6ccb2a7 100644
+--- a/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
++++ b/arch/arm/boot/dts/bcm2708-rpi-zero-w.dts
+@@ -5,6 +5,8 @@
+ #include "bcm283x-rpi-csi1-2lane.dtsi"
+ #include "bcm283x-rpi-i2c0mux_0_28.dtsi"
+ #include "bcm2708-rpi-bt.dtsi"
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/leds/common.h>
+ 
+ / {
+ 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
+@@ -19,6 +21,188 @@ aliases {
+ 		serial1 = &uart0;
+ 		mmc1 = &mmcnr;
+ 	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		led0 {
++			label = "led_star";
++			gpios = <&gpio 2 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led1 {
++			label = "led1";
++			gpios = <&gpio 4 GPIO_ACTIVE_HIGH>;
++			default-state = "off";
++		};
++
++		led2 {
++			label = "led2";
++			gpios = <&gpio 15 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led3 {
++			label = "led3";
++			gpios = <&gpio 13 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led4 {
++			label = "led4";
++			gpios = <&gpio 21 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++
++		led5 {
++			label = "led5";
++			gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++
++		led6 {
++			label = "led6";
++			gpios = <&gpio 8 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led7 {
++			label = "led7";
++			gpios = <&gpio 5 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++
++		led8 {
++			label = "led8";
++			gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led9 {
++			label = "led9";
++			gpios = <&gpio 16 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led10 {
++			label = "led10";
++			gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led11 {
++			label = "led11";
++			gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led12 {
++			label = "led12";
++			gpios = <&gpio 26 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led13 {
++			label = "led13";
++			gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led14 {
++			label = "led14";
++			gpios = <&gpio 9 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led15 {
++			label = "led15";
++			gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led16 {
++			label = "led16";
++			gpios = <&gpio 6 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++
++		led17 {
++			label = "led17";
++			gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led18 {
++			label = "led18";
++			gpios = <&gpio 19 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++
++		led19 {
++			label = "led19";
++			gpios = <&gpio 14 GPIO_ACTIVE_HIGH>;
++			default-state = "off";
++		};
++
++		led20 {
++			label = "led20";
++			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led21 {
++			label = "led21";
++			gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led22 {
++			label = "led22";
++			gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led23 {
++			label = "led23";
++			gpios = <&gpio 23 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++
++		led24 {
++			label = "led24";
++			gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
++			color = <LED_COLOR_ID_RED>;
++			default-state = "off";
++		};
++	};
+ };
+ 
+ &gpio {
+@@ -174,6 +358,7 @@ &spi0 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+ 	cs-gpios = <&gpio 8 1>, <&gpio 7 1>;
++	status = "disabled";
+ 
+ 	spidev0: spidev@0{
+ 		compatible = "spidev";
